@@ -1,0 +1,99 @@
+@page "/jugadores/editar/{id:int}"
+@rendermode InteractiveServer
+@inject TicTacToeApp.Services.JugadoresService Service
+@inject NavigationManager Navigation
+
+<h3 class="mb-3">Editar Jugador</h3>
+
+@if (cargando)
+{
+    <p>Cargando...</p>
+}
+else if (modelo is null)
+{
+    <div class="alert alert-warning">Jugador no encontrado.</div>
+    <a class="btn btn-secondary" href="/jugadores">Volver a la lista</a>
+}
+else
+{
+    <EditForm Model="@modelo" OnValidSubmit="OnValidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label class="form-label">Nombres</label>
+            <InputText class="form-control" @bind-Value="modelo.Nombres" />
+            <ValidationMessage For="@(() => modelo.Nombres)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Partidas</label>
+            <InputNumber class="form-control" @bind-Value="modelo.Partidas" />
+            <ValidationMessage For="@(() => modelo.Partidas)" />
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="alert alert-danger">@error</div>
+        }
+
+        <button class="btn btn-primary" type="submit">Guardar cambios</button>
+        <a class="btn btn-secondary ms-2" href="/jugadores">Cancelar</a>
+    </EditForm>
+
+    @* Confirmación visual antes de ejecutar guardado (se muestra cuando OnValidSubmit se dispara) *@
+    @if (mostrarConfirmGuardar)
+    {
+        <div class="alert alert-info mt-4">
+            <h5>¿Deseas guardar los cambios?</h5>
+            <p><b>@modelo.Nombres</b> (Partidas: @modelo.Partidas)</p>
+            <button class="btn btn-primary me-2" @onclick="ConfirmarGuardar">Guardar</button>
+            <button class="btn btn-secondary" @onclick="CancelarGuardar">Volver</button>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public int id { get; set; }
+
+    private Jugador? modelo;
+    private bool cargando = true;
+    private bool mostrarConfirmGuardar = false;
+    private string? error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        cargando = true;
+        error = null;
+        modelo = await Service.ObtenerPorIdAsync(id);
+        cargando = false;
+    }
+
+    // Se dispara sólo cuando el formulario pasa validación (DataAnnotations)
+    private void OnValidSubmit()
+    {
+        // muestra la confirmación en la UI
+        mostrarConfirmGuardar = true;
+    }
+
+    private async Task ConfirmarGuardar()
+    {
+        mostrarConfirmGuardar = false;
+        if (modelo is null) return;
+
+        var (ok, err) = await Service.GuardarAsync(modelo);
+        if (ok)
+        {
+            Navigation.NavigateTo("/jugadores");
+        }
+        else
+        {
+            error = err ?? "No se pudo guardar. Intenta de nuevo.";
+        }
+    }
+
+    private void CancelarGuardar()
+    {
+        mostrarConfirmGuardar = false;
+    }
+}

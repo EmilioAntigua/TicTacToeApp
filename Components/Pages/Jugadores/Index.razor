@@ -1,0 +1,118 @@
+@page "/jugadores"
+@rendermode InteractiveServer
+@inject JugadoresService Service
+@inject NavigationManager Navigation
+
+<h3 class="text-center mb-4">Consulta de jugadores TicTacToe</h3>
+
+<div class="d-flex justify-content-between mb-3">
+    <a class="btn btn-success" href="/jugadores/crear">➕ Nuevo</a>
+
+    <div class="d-flex">
+        <select class="form-select me-2" style="width:150px" @bind="filtro">
+            <option value="Nombres">Nombre</option>
+            <option value="Partidas">Partidas</option>
+        </select>
+        <input class="form-control me-2" style="width:200px" @bind="busqueda" placeholder="Buscar..." />
+        <button class="btn btn-primary" @onclick="Buscar">🔍 Buscar</button>
+    </div>
+</div>
+
+@if (lista is null)
+{
+    <p>Cargando...</p>
+}
+else if (lista.Count == 0)
+{
+    <p>No hay jugadores registrados.</p>
+}
+else
+{
+    <table class="table table-striped table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>Id</th>
+                <th>Nombres</th>
+                <th>Partidas</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var j in lista)
+            {
+                <tr>
+                    <td>@j.JugadorId</td>
+                    <td>@j.Nombres</td>
+                    <td>@j.Partidas</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary me-2" @onclick="() => Editar(j.JugadorId)">Editar</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => ConfirmarEliminar(j)">Eliminar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (jugadorAEliminar is not null)
+{
+    <div class="alert alert-danger mt-4">
+        <h5>¿Estás seguro de que quieres eliminar al jugador?</h5>
+        <p><b>@jugadorAEliminar.Nombres</b> (Partidas: @jugadorAEliminar.Partidas)</p>
+        <button class="btn btn-danger me-2" @onclick="Eliminar">Eliminar</button>
+        <button class="btn btn-secondary" @onclick="CancelarEliminar">Volver</button>
+    </div>
+}
+
+@code {
+    private List<Jugador>? lista;
+    private Jugador? jugadorAEliminar;
+    private string filtro = "Nombres";
+    private string busqueda = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        lista = await Service.ListarAsync();
+    }
+
+    private async Task Buscar()
+    {
+        var datos = await Service.ListarAsync();
+
+        if (!string.IsNullOrWhiteSpace(busqueda))
+        {
+            if (filtro == "Nombres")
+                datos = datos.Where(j => j.Nombres.Contains(busqueda, StringComparison.OrdinalIgnoreCase)).ToList();
+            else if (filtro == "Partidas" && int.TryParse(busqueda, out int p))
+                datos = datos.Where(j => j.Partidas == p).ToList();
+        }
+
+        lista = datos;
+    }
+
+    private void Editar(int id)
+    {
+        Navigation.NavigateTo($"/jugadores/editar/{id}");
+    }
+
+    private void ConfirmarEliminar(Jugador jugador)
+    {
+        jugadorAEliminar = jugador;
+    }
+
+    private async Task Eliminar()
+    {
+        if (jugadorAEliminar is not null)
+        {
+            await Service.EliminarAsync(jugadorAEliminar.JugadorId);
+            lista = await Service.ListarAsync();
+            jugadorAEliminar = null;
+        }
+    }
+
+    private void CancelarEliminar()
+    {
+        jugadorAEliminar = null;
+    }
+}
+
