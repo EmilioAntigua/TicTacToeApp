@@ -1,4 +1,6 @@
-# TicTacToeApp 🎮
+# TicTacToeApp
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![.NET](https://img.shields.io/badge/.NET-9.0-blue.svg)](https://dotnet.microsoft.com/)
 
 Aplicación Blazor para registrar jugadores de Tic-Tac-Toe.  
 Trabajo: **Registro de jugadores TicTacToe**
