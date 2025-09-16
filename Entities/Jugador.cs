@@ -15,5 +15,7 @@ public class Jugador
 
     [Required(ErrorMessage = "La cantidad de partidas es obligatoria")]
     [Range(0, int.MaxValue, ErrorMessage = "Las partidas deben ser 0 o más")]
-    public int Partidas { get; set; }
+    public int Victorias { get; set; }= 0;
+    public int Derrotas { get; set; } = 0;
+    public int Empetes {get; set; } = 0;
 }
