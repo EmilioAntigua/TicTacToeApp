@@ -1,85 +1,69 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using TicTacToeApp.DAL;
+﻿using TicTacToeApp.DAL;
 using TicTacToeApp.Entities;
+using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 
-namespace TicTacToeApp.Services
+namespace TicTacToeApp.Services;
+
+public class JugadoresService(IDbContextFactory<TicTacToeContext> DbFactory)
 {
-    public class JugadoresService
+    private async Task<bool> Existe(int jugadorId)
     {
-        private readonly TicTacToeContext _ctx;
+        await using var contexto = await DbFactory.CreateDbContextAsync();
+        return await contexto.Jugadores.AnyAsync(j => j.JugadorId == jugadorId);
+    }
 
-        public JugadoresService(TicTacToeContext ctx)
-        {
-            _ctx = ctx;
-        }
+    private async Task<bool> Insertar(Jugador jugador)
+    {
+        await using var contexto = await DbFactory.CreateDbContextAsync();
+        contexto.Jugadores.Add(jugador);
+        return await contexto.SaveChangesAsync() > 0;
+    }
 
-        public async Task<List<Jugador>> ListarAsync()
-        {
-            return await _ctx.Jugadores
-                             .OrderBy(j => j.JugadorId)
-                             .ToListAsync();
-        }
+    private async Task<bool> Modificar(Jugador jugador)
+    {
+        await using var contexto = await DbFactory.CreateDbContextAsync();
+        contexto.Update(jugador);
+        return await contexto.SaveChangesAsync() > 0;
+    }
 
-        public async Task<Jugador?> ObtenerPorIdAsync(int id)
-        {
-            return await _ctx.Jugadores.FindAsync(id);
-        }
+    public async Task<bool> Guardar(Jugador jugador)
+    {
+        if (!await Existe(jugador.JugadorId))
+            return await Insertar(jugador);
+        else
+            return await Modificar(jugador);
+    }
 
-        // Guarda tanto para insertar como para actualizar.
-        public async Task<(bool ok, string? error)> GuardarAsync(Jugador jugador)
-        {
-            // Validar duplicado. Si es edición, excluye el mismo id.
-            if (await ExisteNombreAsync(jugador.Nombres, jugador.JugadorId == 0 ? (int?)null : jugador.JugadorId))
-            {
-                return (false, "Ya existe un jugador con ese nombre.");
-            }
+    public async Task<Jugador?> Buscar(int jugadorId)
+    {
+        await using var contexto = await DbFactory.CreateDbContextAsync();
+        return await contexto.Jugadores.FirstOrDefaultAsync(j => j.JugadorId == jugadorId);
+    }
 
-            if (jugador.JugadorId == 0)
-            {
-                _ctx.Jugadores.Add(jugador);
-            }
-            else
-            {
-                _ctx.Jugadores.Update(jugador);
-            }
+    public async Task<bool> Eliminar(int jugadorId)
+    {
+        await using var contexto = await DbFactory.CreateDbContextAsync();
+        return await contexto.Jugadores
+            .Where(j => j.JugadorId == jugadorId)
+            .ExecuteDeleteAsync() > 0;
+    }
 
-            try
-            {
-                await _ctx.SaveChangesAsync();
-                return (true, null);
-            }
-            catch (DbUpdateException ex)
-            {
-                return (false, "Error al guardar en la base de datos: " + ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return (false, "Error inesperado: " + ex.Message);
-            }
-        }
+    public async Task<List<Jugador>> GetList(Expression<Func<Jugador, bool>> criterio)
+    {
+        await using var contexto = await DbFactory.CreateDbContextAsync();
+        return await contexto.Jugadores
+            .Where(criterio)
+            .AsNoTracking()
+            .ToListAsync();
+    }
 
-        public async Task<bool> ExisteNombreAsync(string nombres, int? excluirId = null)
-        {
-            if (string.IsNullOrWhiteSpace(nombres)) return false;
-            var nombresLower = nombres.Trim().ToLowerInvariant();
-
-            return await _ctx.Jugadores.AnyAsync(j =>
-                j.Nombres.ToLower() == nombresLower &&
-                (!excluirId.HasValue || j.JugadorId != excluirId.Value));
-        }
-
-        public async Task EliminarAsync(int id)
-        {
-            var ent = await _ctx.Jugadores.FindAsync(id);
-            if (ent is not null)
-            {
-                _ctx.Jugadores.Remove(ent);
-                await _ctx.SaveChangesAsync();
-            }
-        }
+    public async Task<bool> ExisteNombre(string nombre, int? excluirId = null)
+    {
+        await using var contexto = await DbFactory.CreateDbContextAsync();
+        return await contexto.Jugadores
+            .AnyAsync(j => j.Nombres.ToLower().Contains(nombre.ToLower())
+                           && (!excluirId.HasValue || j.JugadorId != excluirId.Value));
     }
 }
+
