@@ -1,99 +1,92 @@
-@page "/jugadores/editar/{id:int}"
+@page "/jugadores/edit/{JugadorId:int}"
 @rendermode InteractiveServer
-@inject TicTacToeApp.Services.JugadoresService Service
-@inject NavigationManager Navigation
 
-<h3 class="mb-3">Editar Jugador</h3>
+@inject JugadoresService jugadoresService
+@inject ToastService toastService
+@inject NavigationManager navigationManager
 
-@if (cargando)
-{
-    <p>Cargando...</p>
-}
-else if (modelo is null)
-{
-    <div class="alert alert-warning">Jugador no encontrado.</div>
-    <a class="btn btn-secondary" href="/jugadores">Volver a la lista</a>
-}
-else
-{
-    <EditForm Model="@modelo" OnValidSubmit="OnValidSubmit">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
+<PageTitle>Editar Jugador</PageTitle>
 
-        <div class="mb-3">
-            <label class="form-label">Nombres</label>
-            <InputText class="form-control" @bind-Value="modelo.Nombres" />
-            <ValidationMessage For="@(() => modelo.Nombres)" />
+<EditForm Model="JugadorModel" OnValidSubmit="Modificar" FormName="JugadorEditForm">
+    <DataAnnotationsValidator />
+
+    @* Validaciones arriba con fondo rojo *@
+    <ValidationSummary />
+    <div class="alert alert-danger mt-2" role="alert"
+         style="display:@(EditContext?.GetValidationMessages().Any() == true ? "block" : "none")">
+        Corrige los errores antes de continuar.
+    </div>
+
+    <div class="container">
+        <div class="card shadow-lg">
+            <div class="card-header text-center bg-primary text-white">
+                <h5 class="card-title">Editar Jugador</h5>
+            </div>
+
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label"><strong>Nombres</strong></label>
+                    <InputText class="form-control" @bind-Value="JugadorModel.Nombres"></InputText>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label"><strong>Partidas</strong></label>
+                    <InputNumber class="form-control" @bind-Value="JugadorModel.Partidas"></InputNumber>
+                </div>
+            </div>
+
+            <div class="card-footer text-center mt-2">
+                <a href="/jugadores" class="btn btn-secondary">
+                    <span class="bi bi-arrow-left"></span> Volver
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <span class="bi bi-floppy"></span> Modificar
+                </button>
+            </div>
         </div>
-
-        <div class="mb-3">
-            <label class="form-label">Partidas</label>
-            <InputNumber class="form-control" @bind-Value="modelo.Partidas" />
-            <ValidationMessage For="@(() => modelo.Partidas)" />
-        </div>
-
-        @if (!string.IsNullOrWhiteSpace(error))
-        {
-            <div class="alert alert-danger">@error</div>
-        }
-
-        <button class="btn btn-primary" type="submit">Guardar cambios</button>
-        <a class="btn btn-secondary ms-2" href="/jugadores">Cancelar</a>
-    </EditForm>
-
-    @* Confirmación visual antes de ejecutar guardado (se muestra cuando OnValidSubmit se dispara) *@
-    @if (mostrarConfirmGuardar)
-    {
-        <div class="alert alert-info mt-4">
-            <h5>¿Deseas guardar los cambios?</h5>
-            <p><b>@modelo.Nombres</b> (Partidas: @modelo.Partidas)</p>
-            <button class="btn btn-primary me-2" @onclick="ConfirmarGuardar">Guardar</button>
-            <button class="btn btn-secondary" @onclick="CancelarGuardar">Volver</button>
-        </div>
-    }
-}
+    </div>
+</EditForm>
 
 @code {
-    [Parameter] public int id { get; set; }
+    [Parameter] public int JugadorId { get; set; }
+    public Jugador JugadorModel { get; set; } = new Jugador();
+    private EditContext? EditContext;
 
-    private Jugador? modelo;
-    private bool cargando = true;
-    private bool mostrarConfirmGuardar = false;
-    private string? error;
-
-    protected override async Task OnParametersSetAsync()
+    protected override async Task OnInitializedAsync()
     {
-        cargando = true;
-        error = null;
-        modelo = await Service.ObtenerPorIdAsync(id);
-        cargando = false;
-    }
+        EditContext = new EditContext(JugadorModel);
 
-    // Se dispara sólo cuando el formulario pasa validación (DataAnnotations)
-    private void OnValidSubmit()
-    {
-        // muestra la confirmación en la UI
-        mostrarConfirmGuardar = true;
-    }
-
-    private async Task ConfirmarGuardar()
-    {
-        mostrarConfirmGuardar = false;
-        if (modelo is null) return;
-
-        var (ok, err) = await Service.GuardarAsync(modelo);
-        if (ok)
+        var encontrado = await jugadoresService.Buscar(JugadorId);
+        if (encontrado is not null)
         {
-            Navigation.NavigateTo("/jugadores");
+            JugadorModel = encontrado;
+            EditContext = new EditContext(JugadorModel);
         }
         else
         {
-            error = err ?? "No se pudo guardar. Intenta de nuevo.";
+            toastService.ShowWarning("Jugador no encontrado");
+            navigationManager.NavigateTo("/jugadores");
         }
     }
 
-    private void CancelarGuardar()
+    private async Task Modificar()
     {
-        mostrarConfirmGuardar = false;
+        if (await jugadoresService.ExisteNombre(JugadorModel.Nombres, JugadorModel.JugadorId))
+        {
+            toastService.ShowWarning("Ya existe un jugador con ese nombre");
+            return;
+        }
+
+        var modificado = await jugadoresService.Guardar(JugadorModel);
+
+        if (modificado)
+        {
+            toastService.ShowSuccess("Jugador modificado correctamente");
+            navigationManager.NavigateTo("/jugadores", true);
+        }
+        else
+        {
+            toastService.ShowError("No se pudo modificar el jugador");
+        }
     }
 }
