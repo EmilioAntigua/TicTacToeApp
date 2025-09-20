@@ -1,38 +1,46 @@
+using BlazorBootstrap;
+using Microsoft.EntityFrameworkCore;
 using TicTacToeApp.Components;
-using Microsoft.EntityFrameworkCore; // Para usar EF Core
-using TicTacToeApp.DAL;              // Para usar nuestro DbContext
-using TicTacToeApp.Services;         // Para usar JugadoresService
+using TicTacToeApp.DAL;
+using TicTacToeApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
-// 1. Obtener la cadena de conexiÃ³n desde appsettings.json
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-// 2. Registrar el DbContext con SQL Server
-builder.Services.AddDbContext<TicTacToeContext>(options =>
+
+// Cadena de conexión desde appsettings.json
+var connectionString = builder.Configuration.GetConnectionString("SqlConStr");
+
+// Inyección del contexto usando DbContextFactory
+builder.Services.AddDbContextFactory<TicTacToeContext>(options =>
     options.UseSqlServer(connectionString));
-// 3. Registrar el servicio de Jugadores
-builder.Services.AddScoped<JugadoresService>();    
-// Add services to the container.
+
+// Inyección de servicios
+builder.Services.AddScoped<JugadoresService>();
+
+// Inyección de BlazorBootstrap
+builder.Services.AddBlazorBootstrap();
+builder.Services.AddScoped<ToastService>();
+// Configuración de Razor Components
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 var app = builder.Build();
+
+// Aplicar migraciones automáticamente usando DbContextFactory
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<TicTacToeContext>();
-    db.Database.Migrate(); // Crea la BD y aplica las migraciones pendientes
+    var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<TicTacToeContext>>();
+    using var db = dbFactory.CreateDbContext();
+    db.Database.Migrate();
 }
 
-// Configure the HTTP request pipeline.
+// Configuración de pipeline
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
-
-
 app.UseAntiforgery();
 
 app.MapStaticAssets();
