@@ -10,14 +10,12 @@ public class TicTacToeContext : DbContext
     {
     }
 
-    // Representa la tabla Jugadores en la Base de Datos
     public DbSet<Jugador> Jugadores => Set<Jugador>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        // Refuerzo del índice único en Nombres
         modelBuilder.Entity<Jugador>()
             .HasIndex(j => j.Nombres)
             .IsUnique();
