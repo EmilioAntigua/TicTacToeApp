@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace TicTacToeApp.Entities;
 
-[Index(nameof(Nombres), IsUnique = true)] // esto es para que no se repitan los nombres
+[Index(nameof(Nombres), IsUnique = true)] 
 public class Jugador
 {
     [Key] 
